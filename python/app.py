@@ -1,15 +1,26 @@
 import mysql.connector
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
+
+# Get credentials
+host = os.getenv("DB_HOST")
+user = os.getenv("DB_USER")
+password = os.getenv("DB_PASSWORD")
+database = os.getenv("DB_NAME")
+
+# Connect to MySQL
 conn = mysql.connector.connect(
-    host="localhost",
-    user="your_username",
-    password="your_password",
-    database="your_database"
+    host=host,
+    user=user,
+    password=password,
+    database=database
 )
 
 cursor = conn.cursor()
 
-cursor.execute("SELECT * FROM your_table")
+cursor.execute("SELECT * FROM tweet")
 results = cursor.fetchall()
 
 for row in results:
