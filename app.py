@@ -1,6 +1,7 @@
 import mysql.connector
 from dotenv import load_dotenv
 import os
+import csv
 
 load_dotenv()
 
@@ -20,11 +21,14 @@ conn = mysql.connector.connect(
 
 cursor = conn.cursor()
 
-cursor.execute("SELECT * FROM tweet")
-results = cursor.fetchall()
+with open("follows_sample.csv", "r") as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+        cursor.execute(
+            "INSERT INTO follows (follower_id, followee_id) VALUES (%s, %s)",
+            (row["USER_ID"], row["FOLLOWS_ID"])
+        )
 
-for row in results:
-    print(row)
-
+conn.commit()
 cursor.close()
 conn.close()
