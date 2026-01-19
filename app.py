@@ -2,6 +2,7 @@ import mysql.connector
 from dotenv import load_dotenv
 import os
 import csv
+import time
 
 load_dotenv()
 
@@ -21,7 +22,10 @@ conn = mysql.connector.connect(
 
 cursor = conn.cursor()
 
-with open("follows_sample.csv", "r") as f:
+cursor.execute("TRUNCATE TABLE follows")
+conn.commit()
+
+with open("follows.csv", "r") as f:
     reader = csv.DictReader(f)
     for row in reader:
         cursor.execute(
@@ -29,6 +33,24 @@ with open("follows_sample.csv", "r") as f:
             (row["USER_ID"], row["FOLLOWS_ID"])
         )
 
-conn.commit()
+start_time = time.time()
+tweet_count = 0
+with open("tweet.csv", "r") as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+        cursor.execute(
+            "INSERT INTO tweet (user_id, tweet_text) VALUES (%s, %s)",
+            (row["USER_ID"], row["TWEET_TEXT"])
+        )
+        conn.commit()
+        tweet_count += 1
+end_time = time.time()
+
+elapsed = end_time - start_time
+tps = tweet_count / elapsed
+
+print(f"Inserted {tweet_count} tweets in {elapsed:.2f} seconds")
+print(f"Throughput: {tps:.2f} tweets/sec")
+
 cursor.close()
 conn.close()
