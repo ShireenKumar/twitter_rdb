@@ -4,6 +4,8 @@ import os
 import csv
 import time
 import random
+from twitter_objects import Tweet
+
 
 load_dotenv()
 
@@ -26,6 +28,8 @@ cursor = conn.cursor()
 # cursor.execute("TRUNCATE TABLE follows")
 # conn.commit()
 
+# load follows
+follow_count = 0
 with open("follows.csv", "r") as f:
     reader = csv.DictReader(f)
     for row in reader:
@@ -33,6 +37,9 @@ with open("follows.csv", "r") as f:
             "INSERT INTO follows (follower_id, followee_id) VALUES (%s, %s)",
             (row["USER_ID"], row["FOLLOWS_ID"])
         )
+        follow_count += 1
+
+conn.commit()
 
 start_time = time.time()
 tweet_count = 0
@@ -54,7 +61,7 @@ print(f"Inserted {tweet_count} tweets in {elapsed:.2f} seconds")
 print(f"Throughput: {tps:.2f} tweets/sec")
 
 # Grab the max and min
-cursor.execute("SELECT MIN(user_id), MAX(user_id) FROM users")
+cursor.execute("SELECT MIN(followee_id), MAX(followee_id) FROM FOLLOWS")
 min_user, max_user = cursor.fetchone()
 
 iterations = 1000 
@@ -70,7 +77,7 @@ for _ in range(iterations):
     cursor.execute(
         """
         SELECT t.user_id, t.tweet_text, t.tweet_ts
-        FROM tweet t JOIN follow f ON t.user_id = f.followee_id
+        FROM tweet t JOIN follows f ON t.user_id = f.followee_id
         WHERE f.follower_id = %s
         ORDER BY t.tweet_ts DESC
         LIMIT 10
@@ -78,7 +85,18 @@ for _ in range(iterations):
         (user_id,)
     )
 
-    timeline = cursor.fetchall()
+    rows = cursor.fetchall() # list of tuples
+
+    timeline = []
+    for row in rows:
+        tweet = Tweet(
+            tweet_id = row[0],
+            user_id = row[1],
+            tweet_text = row[2],
+            tweet_ts = row[3]
+        )
+        timeline.append(tweet)
 end_time = time.time()
 cursor.close()
 conn.close()
+# do we add print statements here to calculate timeline results?
