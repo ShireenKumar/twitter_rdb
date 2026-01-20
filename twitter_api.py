@@ -20,6 +20,18 @@ class TwitterAPI:
         self.con.close()
         self.con = None
 
+    def clearFollows(self):
+        cursor = self.con.cursor()
+        cursor.execute("TRUNCATE TABLE follows")
+        self.con.commit()
+        cursor.close()
+    
+    def clearTweets(self):
+        cursor = self.con.cursor()
+        cursor.execute("TRUNCATE TABLE tweet")
+        self.con.commit()
+        cursor.close()
+
     def postTweet(self, tweet: Tweet):
         """
         Insert a tweet into the database.

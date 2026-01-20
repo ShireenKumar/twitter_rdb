@@ -1,6 +1,3 @@
-
-# cursor.execute("TRUNCATE TABLE follows")
-# conn.commit()
 from dotenv import load_dotenv
 import os
 import csv
@@ -17,6 +14,8 @@ password = os.getenv("DB_PASSWORD")
 database = os.getenv("DB_NAME")
 
 api = TwitterAPI(user=user, password=password, database=database, host=host)
+api.clearTweets()
+api.clearFollows()
 
 # load follows.csv
 follow_count = 0
@@ -60,7 +59,7 @@ print(f"Throughput: {tps:.2f} tweets/sec")
 # timeline performance test
 
 cursor = api.con.cursor()
-cursor.execute("SELECT MIN(followee_id), MAX(followee_id) FROM follows")
+cursor.execute("SELECT MIN(follower_id), MAX(follower_id) FROM follows")
 min_user, max_user = cursor.fetchone()
 cursor.close()
 
