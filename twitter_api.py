@@ -1,3 +1,10 @@
+'''
+Contributions: Both Shireen and Arshia worked on this file.
+Arshia did the first bullet point - postTweet
+Shireen did the second bullet point - getTimeline
+We both created the other methods together, Shireen wrote the SQL queries.
+'''
+
 import mysql.connector
 from typing import List
 from twitter_objects import Tweet

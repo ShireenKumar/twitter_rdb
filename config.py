@@ -1,5 +1,6 @@
-# lowk dont know if we need this?? probably do?
-
+'''
+Contributions: Arshia created this file.
+'''
 import os
 from dotenv import load_dotenv
 

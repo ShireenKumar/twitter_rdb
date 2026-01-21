@@ -1,3 +1,8 @@
+'''
+Contributions: Shireen created this file.
+Both Shireen and Arshia worked on this file together.
+We both wrote the performance test code together.
+'''
 from dotenv import load_dotenv
 import os
 import csv
