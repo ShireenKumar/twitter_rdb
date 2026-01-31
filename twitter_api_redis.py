@@ -39,14 +39,17 @@ class TwitterAPI:
         """Clear all follow relationships"""
         # Get all following keys
         keys = self.redis_client.keys("user:*:following")
+        # Appending the list of following and followers to delete 
         keys.extend(self.redis_client.keys("user:*:followers"))
         if keys:
+            # Deleted all keys
             self.redis_client.delete(*keys)
 
     def clearTweets(self):
         """Clear all tweets and timelines"""
         # Get all tweet-related keys
         keys = self.redis_client.keys("tweet:*")
+        # Appending all of the user tweet list
         keys.extend(self.redis_client.keys("user:*:tweets"))
         keys.extend(self.redis_client.keys("user:*:timeline"))
         if keys:
@@ -62,8 +65,9 @@ class TwitterAPI:
         tweet_id = self.redis_client.incr("tweet_counter")
         timestamp = time.time()
         
-        # Store tweet data as hash
+        # Creating the key name which is the primary key 'tweet_id'
         tweet_key = f"tweet:{tweet_id}"
+        # Storing the tweet_key info in a hashset with everything listed in tweet object
         self.redis_client.hset(tweet_key, mapping={
             "user_id": tweet.user_id,
             "tweet_text": tweet.tweet_text,
@@ -71,23 +75,21 @@ class TwitterAPI:
         })
         
         # Add to user's own tweets (sorted set by timestamp)
+        # A sorted set ordered by the timestamp
         self.redis_client.zadd(
             f"user:{tweet.user_id}:tweets",
             {tweet_id: timestamp}
         )
         
-        # Fan out: Add to all followers' timelines
+        # Add new tweet to all followers timelines
         followers = self.redis_client.smembers(f"user:{tweet.user_id}:followers")
         
         if followers:
-            # Use pipeline for efficient batch operations
-            pipeline = self.redis_client.pipeline()
+            # Going through each follower
             for follower_id in followers:
-                pipeline.zadd(
-                    f"user:{follower_id}:timeline",
-                    {tweet_id: timestamp}
-                )
-            pipeline.execute()
+                # Creating a sorted set for the follower id using the timestamp
+                self.redis_client.zadd(f"user:{follower_id}:timeline", {tweet_id: timestamp})
+
 
     def getTimeline(self, user_id: int, limit: int = 10) -> List[Tweet]:
         """
@@ -95,25 +97,17 @@ class TwitterAPI:
         Since we use fan-out on write, this is a simple sorted set range query.
         """
         # Get latest tweet IDs from user's timeline (sorted set, highest scores first)
-        tweet_ids = self.redis_client.zrevrange(
-            f"user:{user_id}:timeline",
-            0,
-            limit - 1
-        )
+        # zrevrange --> gets a range from sorted set in reverse order, get the newer tweet id first 
+        tweet_ids = self.redis_client.zrevrange(f"user:{user_id}:timeline", 0, limit - 1)
         
+        # if there are no tweet ids
         if not tweet_ids:
             return []
         
-        # Fetch full tweet data using pipeline
-        pipeline = self.redis_client.pipeline()
-        for tweet_id in tweet_ids:
-            pipeline.hgetall(f"tweet:{tweet_id}")
-        
-        tweets_data = pipeline.execute()
-        
         # Convert to Tweet objects
         timeline = []
-        for tweet_id, tweet_data in zip(tweet_ids, tweets_data):
+        for tweet_id in tweet_ids:
+            tweet_data = self.redis_client.hgetall(f"{tweet_id}")
             if tweet_data:
                 tweet = Tweet(
                     tweet_id=int(tweet_id),
@@ -122,58 +116,4 @@ class TwitterAPI:
                     tweet_ts=float(tweet_data["tweet_ts"])
                 )
                 timeline.append(tweet)
-        
         return timeline
-
-    def getFollowers(self, user_id: int) -> List[int]:
-        """Get list of user IDs who follow this user"""
-        followers = self.redis_client.smembers(f"user:{user_id}:followers")
-        return [int(f) for f in followers]
-
-    def getFollowees(self, user_id: int) -> List[int]:
-        """Get list of user IDs that this user follows"""
-        followees = self.redis_client.smembers(f"user:{user_id}:following")
-        return [int(f) for f in followees]
-
-    def getTweets(self, user_id: int) -> List[Tweet]:
-        """Get all tweets by a specific user"""
-        # Get tweet IDs from user's tweets sorted set
-        tweet_ids = self.redis_client.zrevrange(
-            f"user:{user_id}:tweets",
-            0,
-            -1  # Get all tweets
-        )
-        
-        if not tweet_ids:
-            return []
-        
-        # Fetch full tweet data
-        pipeline = self.redis_client.pipeline()
-        for tweet_id in tweet_ids:
-            pipeline.hgetall(f"tweet:{tweet_id}")
-        
-        tweets_data = pipeline.execute()
-        
-        # Convert to Tweet objects
-        tweets = []
-        for tweet_id, tweet_data in zip(tweet_ids, tweets_data):
-            if tweet_data:
-                tweet = Tweet(
-                    tweet_id=int(tweet_id),
-                    user_id=int(tweet_data["user_id"]),
-                    tweet_text=tweet_data["tweet_text"],
-                    tweet_ts=float(tweet_data["tweet_ts"])
-                )
-                tweets.append(tweet)
-        
-        return tweets
-
-    def addFollow(self, follower_id: int, followee_id: int):
-        """
-        Add a follow relationship.
-        This method is needed for loading the follows.csv data.
-        """
-        # Add to follower's following set
-        self.redis_client.sadd(f"user:{follower_id}:following", followee_id)
-        # Add to followee's followers set
-        self.redis_client.sadd(f"user:{followee_id}:followers", follower_id)
