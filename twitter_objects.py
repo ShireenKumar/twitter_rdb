@@ -8,7 +8,7 @@ from datetime import datetime
 class Tweet:
     '''represents a tweet object from the tweet database table'''
     def __init__(self, tweet_id: Optional[int], user_id: int, 
-                 tweet_text: str, tweet_ts: Optional[datetime] = None):
+                 tweet_text: str, tweet_ts: Optional[float] = None):
         self.tweet_id = tweet_id
         self.user_id = user_id
         self.tweet_text = tweet_text
