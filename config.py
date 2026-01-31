@@ -14,6 +14,14 @@ DB_CONFIG = {
     'port': int(os.getenv('DB_PORT', 3306))
 }
 
+# Redis config
+REDIS_CONFIG = {
+    'host': os.getenv('REDIS_HOST', 'localhost'),
+    'port': int(os.getenv('REDIS_PORT', 6379)),
+    'db': int(os.getenv('REDIS_DB', 0)),
+    'decode_responses': True
+}
+
 # Performance test settings
 TWEET_TARGET_COUNT = 1_000_000  # Test with 1 million tweets
 TIMELINE_TEST_DURATION = 60      # Test timelines for 60 seconds
