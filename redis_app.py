@@ -20,12 +20,11 @@ api.clearFollows()
 # Load follows.csv
 print("Loading follow relationships...")
 follow_count = 0
-start_time = time.time()
+follows_start = time.time()
 
 with open("follows.csv", "r") as f:
     reader = csv.DictReader(f)
     
-    # Batch follow relationships for efficiency
     batch_size = 1000
     batch = []
     
@@ -34,22 +33,20 @@ with open("follows.csv", "r") as f:
         follow_count += 1
         
         if len(batch) >= batch_size:
-            # Process batch
             for follower_id, followee_id in batch:
                 api.addFollow(follower_id, followee_id)
             batch = []
     
-    # Process remaining batch
     if batch:
         for follower_id, followee_id in batch:
             api.addFollow(follower_id, followee_id)
 
-end_time = time.time()
-print(f"Loaded {follow_count} follow relationships in {end_time - start_time:.2f} seconds")
+follows_end = time.time()
+print(f"Loaded {follow_count} follow relationships in {follows_end - follows_start:.2f} seconds")
 
 # Posting tweets performance test
 print("\n=== Performance Test: postTweet ===")
-start_time = time.time()
+post_start = time.time()
 tweet_count = 0
 
 with open("tweet.csv", "r") as f:
@@ -64,17 +61,16 @@ with open("tweet.csv", "r") as f:
         api.postTweet(t)
         tweet_count += 1
 
-end_time = time.time()
-elapsed = end_time - start_time
-tps = tweet_count / elapsed
+post_end = time.time()
+post_elapsed = post_end - post_start
+post_tps = tweet_count / post_elapsed
 
-print(f"Inserted {tweet_count} tweets in {elapsed:.2f} seconds")
-print(f"postTweet Throughput: {tps:.2f} tweets/sec")
+print(f"Inserted {tweet_count} tweets in {post_elapsed:.2f} seconds")
+print(f"postTweet Throughput: {post_tps:.2f} tweets/sec")
 
 # Timeline performance test
 print("\n=== Performance Test: getTimeline ===")
 
-# Get user ID range from Redis
 all_following_keys = api.redis_client.keys("user:*:following")
 user_ids = [int(key.split(":")[1]) for key in all_following_keys]
 
@@ -87,27 +83,27 @@ min_user = min(user_ids)
 max_user = max(user_ids)
 
 iterations = 1000
-start_time = time.time()
+timeline_start = time.time()
 
 for _ in range(iterations):
     user_id = random.randint(min_user, max_user)
     timeline = api.getTimeline(user_id)
 
-end_time = time.time()
-elapsed = end_time - start_time
-tps = iterations / elapsed
+timeline_end = time.time()
+timeline_elapsed = timeline_end - timeline_start
+timeline_tps = iterations / timeline_elapsed
 
-print(f"Timeline fetches: {iterations} in {elapsed:.2f} seconds")
-print(f"getTimeline Throughput: {tps:.2f} timelines/sec")
+print(f"Timeline fetches: {iterations} in {timeline_elapsed:.2f} seconds")
+print(f"getTimeline Throughput: {timeline_tps:.2f} timelines/sec")
 
 # Summary statistics
 print("\n=== Summary ===")
 print(f"Total tweets: {tweet_count}")
 print(f"Total follows: {follow_count}")
 print(f"Users with following relationships: {len(user_ids)}")
-print(f"\npostTweet: {tweet_count / (end_time - start_time):.2f} ops/sec")
-print(f"getTimeline: {tps:.2f} ops/sec")
-print(f"Speedup ratio (getTimeline/postTweet): {tps / (tweet_count / elapsed):.2f}x")
+print(f"\npostTweet: {post_tps:.2f} ops/sec")
+print(f"getTimeline: {timeline_tps:.2f} ops/sec")
+print(f"Speedup ratio (getTimeline/postTweet): {timeline_tps / post_tps:.2f}x")
 
 api.close()
 print("\nDone!")

@@ -112,9 +112,15 @@ class TwitterAPI:
 
         # 
         timeline = []
+
+        # Pipeline tweet hash lookups to reduce Redis round-trips
+        pipe = self.redis_client.pipeline()
         for tweet_id in tweet_ids:
             # hgetall gets all of the tweets with the tweet_id we are parsing through
-            tweet_data = self.redis_client.hgetall(f"tweet:{tweet_id}")
+            pipe.hgetall(f"tweet:{tweet_id}")
+        tweet_data_list = pipe.execute()
+
+        for tweet_id, tweet_data in zip(tweet_ids, tweet_data_list):
             if tweet_data:
                 tweet = Tweet(
                     tweet_id=int(tweet_id),
