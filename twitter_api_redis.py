@@ -53,6 +53,7 @@ class TwitterAPI:
         keys.extend(self.redis_client.keys("user:*:tweets"))
         keys.extend(self.redis_client.keys("user:*:timeline"))
         if keys:
+            # Then deleting them 
             self.redis_client.delete(*keys)
         # Reset tweet counter
         self.redis_client.delete("tweet_counter")
@@ -84,10 +85,12 @@ class TwitterAPI:
         # Getting all memebers from a set: user:{tweet.user_id}:followers --> this gets all the 
         followers = self.redis_client.smembers(f"user:{tweet.user_id}:followers")
         
-        # Parses through the followers
+        # Parses through the followers and then creates an ordered ser 
         for follower_id in followers:
             self.redis_client.zadd(
+                # This is the key, it was made earlier in the addFollow method
                 f"user:{follower_id}:timeline",
+                # Here we are adding the tweet_id as the member (value) and timestamp as the score (what is being used to sort)
                 {tweet_id: timestamp}
             )
 
@@ -96,8 +99,9 @@ class TwitterAPI:
         Get the most recent tweets from users followed by user_id.
         Since we use fan-out on write, this is a simple sorted set range query.
         """
-        # Get latest tweet IDs from user's timeline (sorted set, highest scores first)
+        # Using the key user:{user_id}:timeline we get items in reverse order, (highest scores first) with a limit of 10
         tweet_ids = self.redis_client.zrevrange(
+            # Gets the tweet_id and sorts it with the timestamp
             f"user:{user_id}:timeline",
             0,
             limit - 1
@@ -105,10 +109,11 @@ class TwitterAPI:
         
         if not tweet_ids:
             return []
-        
-        # Simple version without pipeline
+
+        # 
         timeline = []
         for tweet_id in tweet_ids:
+            # hgetall gets all of the tweets with the tweet_id we are parsing through
             tweet_data = self.redis_client.hgetall(f"tweet:{tweet_id}")
             if tweet_data:
                 tweet = Tweet(
@@ -120,38 +125,6 @@ class TwitterAPI:
                 timeline.append(tweet)
         
         return timeline
-
-    def getFollowees(self, user_id: int) -> List[int]:
-        """Get list of user IDs that this user follows"""
-        followees = self.redis_client.smembers(f"user:{user_id}:following")
-        return [int(f) for f in followees]
-
-    def getTweets(self, user_id: int) -> List[Tweet]:
-        """Get all tweets by a specific user"""
-        # Get tweet IDs from user's tweets sorted set
-        tweet_ids = self.redis_client.zrevrange(
-            f"user:{user_id}:tweets",
-            0,
-            -1  # Get all tweets
-        )
-        
-        if not tweet_ids:
-            return []
-        
-        # Fetch full tweet data
-        tweets = []
-        for tweet_id in tweet_ids:
-            tweet_data = self.redis_client.hgetall(f"tweet:{tweet_id}")
-            if tweet_data:
-                tweet = Tweet(
-                    tweet_id=int(tweet_id),
-                    user_id=int(tweet_data["user_id"]),
-                    tweet_text=tweet_data["tweet_text"],
-                    tweet_ts=float(tweet_data["tweet_ts"])
-                )
-                tweets.append(tweet)
-        
-        return tweets
 
     def addFollow(self, follower_id: int, followee_id: int):
         """
