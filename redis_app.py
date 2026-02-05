@@ -13,12 +13,10 @@ from twitter_objects import Tweet
 api = TwitterAPI(host="localhost", port=6379, db=0)
 
 # Clear existing data
-print("Clearing existing data...")
 api.clearTweets()
 api.clearFollows()
 
 # Load follows.csv
-print("Loading follow relationships...")
 follow_count = 0
 follows_start = time.time()
 
@@ -41,11 +39,8 @@ with open("follows.csv", "r") as f:
         for follower_id, followee_id in batch:
             api.addFollow(follower_id, followee_id)
 
-follows_end = time.time()
-print(f"Loaded {follow_count} follow relationships in {follows_end - follows_start:.2f} seconds")
-
 # Posting tweets performance test
-print("\n=== Performance Test: postTweet ===")
+print("\npostTweet")
 post_start = time.time()
 tweet_count = 0
 
@@ -66,16 +61,15 @@ post_elapsed = post_end - post_start
 post_tps = tweet_count / post_elapsed
 
 print(f"Inserted {tweet_count} tweets in {post_elapsed:.2f} seconds")
-print(f"postTweet Throughput: {post_tps:.2f} tweets/sec")
+print(f"postTweet : {post_tps:.2f} tweets/sec")
 
 # Timeline performance test
-print("\n=== Performance Test: getTimeline ===")
+print("\ngetTimeline")
 
 all_following_keys = api.redis_client.keys("user:*:following")
 user_ids = [int(key.split(":")[1]) for key in all_following_keys]
 
 if not user_ids:
-    print("No users with follow relationships found!")
     api.close()
     exit(1)
 
@@ -94,16 +88,6 @@ timeline_elapsed = timeline_end - timeline_start
 timeline_tps = iterations / timeline_elapsed
 
 print(f"Timeline fetches: {iterations} in {timeline_elapsed:.2f} seconds")
-print(f"getTimeline Throughput: {timeline_tps:.2f} timelines/sec")
-
-# Summary statistics
-print("\n=== Summary ===")
-print(f"Total tweets: {tweet_count}")
-print(f"Total follows: {follow_count}")
-print(f"Users with following relationships: {len(user_ids)}")
-print(f"\npostTweet: {post_tps:.2f} ops/sec")
-print(f"getTimeline: {timeline_tps:.2f} ops/sec")
-print(f"Speedup ratio (getTimeline/postTweet): {timeline_tps / post_tps:.2f}x")
+print(f"getTimeline: {timeline_tps:.2f} timelines/sec")
 
 api.close()
-print("\nDone!")

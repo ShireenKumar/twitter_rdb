@@ -1,14 +1,6 @@
 '''
 Contributions: Both Shireen and Arshia worked on this file.
 Modified to use Redis instead of MySQL.
-
-Storage Model:
-1. tweet:{tweet_id} -> Hash with fields: user_id, tweet_text, tweet_ts
-2. user:{user_id}:tweets -> Sorted Set (score=timestamp, member=tweet_id)
-3. user:{user_id}:timeline -> Sorted Set (score=timestamp, member=tweet_id)
-4. user:{user_id}:following -> Set of user_ids
-5. user:{user_id}:followers -> Set of user_ids
-6. tweet_counter -> Integer counter for generating tweet IDs
 '''
 
 import redis
@@ -18,10 +10,6 @@ from twitter_objects import Tweet
 
 
 class TwitterAPI:
-    """
-    API for Twitter-like operations on Redis database.
-    Uses fan-out on write strategy for timelines.
-    """
 
     def __init__(self, host="localhost", port=6379, db=0):
         self.redis_client = redis.Redis(
@@ -32,11 +20,9 @@ class TwitterAPI:
         )
 
     def close(self):
-        """Close the Redis connection"""
         self.redis_client.close()
 
     def clearFollows(self):
-        """Clear all follow relationships"""
         # Get all following keys
         keys = self.redis_client.keys("user:*:following")
         # Appending the list of following and followers to delete 
@@ -46,7 +32,6 @@ class TwitterAPI:
             self.redis_client.delete(*keys)
 
     def clearTweets(self):
-        """Clear all tweets and timelines"""
         # Get all tweet-related keys
         keys = self.redis_client.keys("tweet:*")
         # Appending all of the user tweet list
@@ -59,9 +44,6 @@ class TwitterAPI:
         self.redis_client.delete("tweet_counter")
 
     def postTweet(self, tweet: Tweet):
-        """
-        Insert a tweet into Redis and fan out to all followers' timelines.
-        """
         # Generate unique tweet ID
         tweet_id = self.redis_client.incr("tweet_counter")
         timestamp = time.time()
@@ -95,10 +77,6 @@ class TwitterAPI:
             )
 
     def getTimeline(self, user_id: int, limit: int = 10) -> List[Tweet]:
-        """
-        Get the most recent tweets from users followed by user_id.
-        Since we use fan-out on write, this is a simple sorted set range query.
-        """
         # Using the key user:{user_id}:timeline we get items in reverse order, (highest scores first) with a limit of 10
         tweet_ids = self.redis_client.zrevrange(
             # Gets the tweet_id and sorts it with the timestamp
@@ -110,7 +88,7 @@ class TwitterAPI:
         if not tweet_ids:
             return []
 
-        # 
+        # creating a list to keep track of the timelines
         timeline = []
 
         # Pipeline tweet hash lookups to reduce Redis round-trips
@@ -133,10 +111,6 @@ class TwitterAPI:
         return timeline
 
     def addFollow(self, follower_id: int, followee_id: int):
-        """
-        Add a follow relationship.
-        This method is needed for loading the follows.csv data.
-        """
         # Add to follower's following set
         self.redis_client.sadd(f"user:{follower_id}:following", followee_id)
         # Add to followee's followers set
